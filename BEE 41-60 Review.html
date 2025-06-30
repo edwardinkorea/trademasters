@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business English Word Puzzle</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Light gray background */
+            overflow-y: auto; /* Ensure body can scroll if content overflows */
+        }
+        .word-slot {
+            min-width: 80px; /* Minimum width for slots */
+            min-height: 40px; /* Minimum height for slots */
+            border: 1px dashed #cbd5e1; /* Light gray dashed border */
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #ffffff; /* White background for slots */
+            transition: all 0.2s ease-in-out;
+            position: relative; /* Needed for absolute positioning of dropped words */
+        }
+        .word-slot.hovered {
+            background-color: #e0f2fe; /* Light blue on hover */
+            border-color: #38b2ac; /* Teal border on hover */
+        }
+        .draggable-word {
+            cursor: grab;
+            background-color: #38b2ac; /* Teal background */
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+            user-select: none; /* Prevent text selection during drag */
+            touch-action: none; /* Prevent browser default touch actions */
+            position: relative; /* Ensure it stays within slot bounds if flex is used */
+        }
+        .draggable-word:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .phrase-container.completed .word-slot {
+            border-color: #22c55e; /* Green border for completed slots */
+            background-color: #dcfce7; /* Light green background for completed slots */
+        }
+        .phrase-container.completed .draggable-word {
+            background-color: #16a34a; /* Darker green for completed words */
+            cursor: default;
+        }
+        .phrase-container.completed {
+            font-weight: bold; /* Make the entire phrase bold */
+        }
+        .word-bank-item {
+            background-color: #60a5fa; /* Blue background for words in bank */
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            cursor: grab;
+            transition: transform 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+            user-select: none; /* Prevent text selection during drag */
+            touch-action: none; /* Prevent browser default touch actions */
+        }
+        .word-bank-item:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Ghost element for dragging */
+        .dragging-ghost {
+            position: fixed;
+            pointer-events: none; /* Allows clicks/hovers to pass through to elements beneath */
+            z-index: 1000;
+            background-color: #38b2ac;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            transform: translate(-50%, -50%); /* Center the ghost on the cursor */
+            opacity: 0.8;
+            transition: none; /* No transition during drag */
+            cursor: grabbing;
+        }
+
+        /* Modal styles (only for completion, reset modal removed) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: #fff;
+            padding: 2.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.25);
+            text-align: center;
+            max-width: 90%;
+            width: 400px;
+        }
+
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .word-slot {
+                min-width: 60px;
+                min-height: 35px;
+                padding: 4px 6px;
+            }
+            .draggable-word, .word-bank-item, .dragging-ghost {
+                padding: 6px 10px;
+                font-size: 0.9em;
+            }
+            .word-bank {
+                padding: 1rem;
+            }
+            #student-name {
+                width: 100px; /* Smaller width for name input on mobile */
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4">
+    <div class="container max-w-4xl w-full bg-white rounded-xl shadow-lg p-6 mb-8 mt-4 border-2 border-black">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Business English Word Puzzle</h1>
+        <p class="text-center text-gray-600 mb-8">Drag and drop the words to complete the business expressions. The phrase will turn bold when correct!</p>
+
+        <div id="phrases-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- Phrases will be dynamically loaded here -->
+        </div>
+
+        <!-- Stopwatch and Name Input -->
+        <div class="flex justify-center items-center gap-4 mb-6 flex-wrap">
+            <div class="text-lg font-semibold text-gray-700 flex items-center p-2 rounded-md bg-gray-100 shadow-sm border border-black">
+                Time: <span id="stopwatch-display" class="ml-2 font-bold text-blue-700">00:00</span>
+            </div>
+            <div class="text-lg font-semibold text-gray-700 flex items-center p-2 rounded-md bg-gray-100 shadow-sm border border-black">
+                Name: <input type="text" id="student-name" placeholder="Enter your name" class="ml-2 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-gray-800 w-32 md:w-auto">
+            </div>
+        </div>
+        <!-- END MODIFIED SECTION -->
+    </div>
+
+    <div class="container max-w-4xl w-full bg-blue-100 rounded-xl shadow-lg p-6">
+        <h2 class="text-2xl font-semibold text-center text-blue-800 mb-4">Word Bank</h2>
+        <div id="word-bank" class="flex flex-wrap justify-center p-4 rounded-lg bg-blue-50 border border-blue-200 min-h-[120px]">
+            <!-- Scrambled words will be dynamically loaded here -->
+        </div>
+    </div>
+
+    <!-- Completion Message Modal - MODIFIED -->
+    <div id="completion-message" class="hidden modal-overlay">
+        <div class="modal-content">
+            <!-- MODIFIED: Removed comma after Congratulations -->
+            <h2 class="text-3xl font-bold text-green-600 mb-4">Congratulations <span id="congrats-name"></span>!</h2>
+            <p class="text-lg text-gray-700">You've completed all the expressions!</p>
+            <p class="text-xl font-semibold text-gray-800 mt-4">Your Time: <span id="final-time"></span></p>
+            <button id="close-message-button" class="mt-6 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none">
+                Great Job!
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const expressions = [
+            "catch hell",
+            "cut out for something",
+            "to/until the bitter end",
+            "wreak havoc",
+            "come into one's own",
+            "in lieu of something",
+            "paint the town red",
+            "with flying colors",
+            "call the shots",
+            "call someone out on/for something",
+            "weigh in on something",
+            "bust one's hump",
+            "make good on something",
+            "not hold water",
+            "connect the dots",
+            "pick up on something",
+            "hunker down",
+            "get under one's skin",
+            "not in the cards",
+            "take a page from/out of someone's book"
+        ];
+
+        let phrasesData = [];
+        let wordBankWords = [];
+        let completedPhrasesCount = 0;
+        let usedExpressionIndexes = new Set(); 
+
+        const phrasesContainer = document.getElementById('phrases-container');
+        const wordBank = document.getElementById('word-bank');
+        const completionMessage = document.getElementById('completion-message');
+        const closeMessageButton = document.getElementById('close-message-button');
+        const stopwatchDisplay = document.getElementById('stopwatch-display'); 
+        const studentNameInput = document.getElementById('student-name'); 
+        const finalTimeDisplay = document.getElementById('final-time'); 
+        const congratsNameDisplay = document.getElementById('congrats-name'); 
+
+        let currentDraggedItem = null; 
+        let draggingGhost = null;     
+        let initialMouseX, initialMouseY;
+        let initialElemLeft, initialElemTop;
+        let currentDropTarget = null; 
+        let originalParent = null; 
+
+        let timerInterval;
+        let secondsElapsed = 0;
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function initializePuzzle() {
+            phrasesData = [];
+            wordBankWords = [];
+            completedPhrasesCount = 0;
+            usedExpressionIndexes.clear(); 
+            phrasesContainer.innerHTML = '';
+            wordBank.innerHTML = '';
+            completionMessage.classList.add('hidden');
+            studentNameInput.value = ''; 
+
+            expressions.forEach((expr, index) => {
+                const words = expr.split(' ');
+                const phraseId = `phrase-${index}`;
+                const slots = words.map((word, wordIndex) => ({
+                    word: '', 
+                    correctWord: word, 
+                    slotId: `${phraseId}-slot-${wordIndex}`
+                }));
+
+                phrasesData.push({
+                    id: phraseId,
+                    slots: slots,
+                    isCompleted: false,
+                    matchedExpressionIndex: null 
+                });
+
+                words.forEach(word => wordBankWords.push({
+                    text: word,
+                    wordId: `word-${wordBankWords.length}-${word.replace(/[^a-zA-Z0-9]/g, '')}`
+                }));
+            });
+
+            renderPhrases();
+            renderWordBank();
+            addCustomDragAndDropListeners();
+            startTimer(); 
+        }
+
+        function renderPhrases() {
+            phrasesData.forEach(phrase => {
+                const phraseDiv = document.createElement('div');
+                phraseDiv.id = phrase.id;
+                phraseDiv.classList.add('phrase-container', 'flex', 'flex-wrap', 'gap-2', 'items-center', 'bg-gray-200', 'p-4', 'rounded-lg', 'shadow-sm', 'border', 'border-gray-400');
+                if (phrase.isCompleted) {
+                    phraseDiv.classList.add('completed');
+                }
+
+                phrase.slots.forEach(slot => {
+                    const slotDiv = document.createElement('div');
+                    slotDiv.id = slot.slotId;
+                    slotDiv.classList.add('word-slot', 'flex-grow'); 
+                    slotDiv.dataset.phraseId = phrase.id;
+                    
+                    if (slot.word) {
+                        const wordSpan = createDraggableWordSpan(slot.word);
+                        slotDiv.appendChild(wordSpan);
+                    }
+
+                    phraseDiv.appendChild(slotDiv);
+                });
+                phrasesContainer.appendChild(phraseDiv);
+            });
+        }
+
+        function createDraggableWordSpan(wordText) {
+            const wordSpan = document.createElement('span');
+            wordSpan.textContent = wordText;
+            wordSpan.classList.add('draggable-word', 'px-3', 'py-1', 'rounded-md', 'select-none', 'flex-shrink-0');
+            wordSpan.dataset.wordText = wordText;
+            return wordSpan;
+        }
+
+        function renderWordBank() {
+            const wordsForBank = [];
+            wordBankWords.forEach(word => {
+                let isWordUsedInCompletedPhrase = false;
+                phrasesData.forEach(phrase => {
+                    if (phrase.isCompleted && phrase.matchedExpressionIndex !== null) {
+                        const originalExpressionWords = expressions[phrase.matchedExpressionIndex].split(' ');
+                        const foundInSlot = phrase.slots.some(s => s.word === word.text);
+                        if (foundInSlot && originalExpressionWords.includes(word.text)) {
+                            isWordUsedInCompletedPhrase = true;
+                        }
+                    }
+                });
+                if (!isWordUsedInCompletedPhrase) {
+                    wordsForBank.push(word);
+                }
+            });
+
+            wordBank.innerHTML = ''; 
+            const shuffledWords = shuffleArray([...wordsForBank]);
+            shuffledWords.forEach(word => {
+                const wordSpan = createDraggableWordSpan(word.text);
+                wordSpan.classList.remove('draggable-word');
+                wordSpan.classList.add('word-bank-item');
+                wordBank.appendChild(wordSpan);
+            });
+        }
+
+        function addCustomDragAndDropListeners() {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            document.removeEventListener('touchmove', onTouchMove);
+            document.removeEventListener('touchend', onTouchEnd);
+            document.removeEventListener('touchcancel', onTouchCancel);
+
+            document.querySelectorAll('.draggable-word, .word-bank-item').forEach(item => {
+                item.removeEventListener('mousedown', onMouseDown); 
+                item.removeEventListener('touchstart', onTouchStart); 
+
+                item.addEventListener('mousedown', onMouseDown);
+                item.addEventListener('touchstart', onTouchStart, { passive: false }); 
+            });
+        }
+
+        function onMouseDown(e) {
+            if (e.button !== 0) return; 
+            startDrag(e, e.clientX, e.clientY);
+        }
+
+        function onTouchStart(e) {
+            if (e.touches.length === 1 && !currentDraggedItem) { 
+                e.preventDefault(); 
+                startDrag(e, e.touches[0].clientX, e.touches[0].clientY);
+            } else {
+                cleanupDragState(); 
+            }
+        }
+
+        function startDrag(e, clientX, clientY) {
+            if (currentDraggedItem) return;
+
+            currentDraggedItem = e.target;
+            originalParent = currentDraggedItem.parentElement; 
+
+            const parentPhraseContainer = currentDraggedItem.closest('.phrase-container');
+            if (parentPhraseContainer && parentPhraseContainer.classList.contains('completed')) {
+                currentDraggedItem = null; 
+                originalParent = null; 
+                return;
+            }
+
+            draggingGhost = currentDraggedItem.cloneNode(true);
+            draggingGhost.classList.add('dragging-ghost');
+            draggingGhost.classList.remove('draggable-word', 'word-bank-item'); 
+            document.body.appendChild(draggingGhost);
+
+            initialMouseX = clientX;
+            initialMouseY = clientY;
+            const rect = currentDraggedItem.getBoundingClientRect();
+            initialElemLeft = rect.left;
+            initialElemTop = rect.top;
+
+            draggingGhost.style.left = clientX + 'px';
+            draggingGhost.style.top = clientY + 'px';
+
+            currentDraggedItem.style.visibility = 'hidden';
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            document.addEventListener('touchmove', onTouchMove, { passive: false });
+            document.addEventListener('touchend', onTouchEnd);
+            document.addEventListener('touchcancel', onTouchCancel);
+        }
+
+        function onMouseMove(e) {
+            if (!draggingGhost) return;
+            moveGhost(e.clientX, e.clientY);
+            handleAutoScroll(e.clientY);
+            highlightDropTarget(e.clientX, e.clientY);
+        }
+
+        function onTouchMove(e) {
+            if (!draggingGhost || e.touches.length !== 1 || e.targetTouches.length !== 1) { 
+                return;
+            }
+            e.preventDefault(); 
+            moveGhost(e.touches[0].clientX, e.touches[0].clientY);
+            handleAutoScroll(e.touches[0].clientY);
+            highlightDropTarget(e.touches[0].clientX, e.touches[0].clientY);
+        }
+
+        function moveGhost(clientX, clientY) {
+            draggingGhost.style.left = clientX + 'px';
+            draggingGhost.style.top = clientY + 'px';
+        }
+
+        const SCROLL_SPEED = 15; 
+        const SCROLL_AREA = 100; 
+
+        function handleAutoScroll(clientY) {
+            const viewportHeight = window.innerHeight;
+            if (clientY < SCROLL_AREA) {
+                window.scrollBy(0, -SCROLL_SPEED);
+            } else if (clientY > viewportHeight - SCROLL_AREA) {
+                window.scrollBy(0, SCROLL_SPEED);
+            }
+        }
+
+        function highlightDropTarget(clientX, clientY) {
+            if (draggingGhost) draggingGhost.style.display = 'none';
+            let targetElem = document.elementFromPoint(clientX, clientY);
+            if (draggingGhost) draggingGhost.style.display = ''; 
+
+            let newDropTarget = null;
+            if (targetElem) {
+                if (targetElem.classList.contains('word-slot')) {
+                    newDropTarget = targetElem;
+                } else if (targetElem.closest('.word-slot')) {
+                    newDropTarget = targetElem.closest('.word-slot');
+                } else if (targetElem.id === 'word-bank' || targetElem.closest('#word-bank')) {
+                    newDropTarget = wordBank; 
+                }
+            }
+
+            if (newDropTarget !== currentDropTarget) {
+                if (currentDropTarget && currentDropTarget.classList.contains('word-slot')) {
+                    currentDropTarget.classList.remove('hovered');
+                }
+                if (newDropTarget && newDropTarget.classList.contains('word-slot')) {
+                    newDropTarget.classList.add('hovered');
+                }
+                currentDropTarget = newDropTarget;
+            }
+        }
+
+        function onMouseUp(e) {
+            endDrag();
+        }
+
+        function onTouchEnd(e) {
+            if (currentDraggedItem && e.touches.length === 0) { 
+                endDrag();
+            } else if (currentDraggedItem && e.touches.length > 0) {
+                cleanupDragState();
+            }
+        }
+
+        function onTouchCancel(e) {
+            cleanupDragState();
+        }
+
+        function cleanupDragState() {
+            if (draggingGhost) {
+                document.body.removeChild(draggingGhost);
+                draggingGhost = null;
+            }
+            if (currentDraggedItem) {
+                currentDraggedItem.style.visibility = 'visible';
+                currentDraggedItem = null;
+                originalParent = null; 
+            }
+            if (currentDropTarget && currentDropTarget.classList.contains('word-slot')) {
+                currentDropTarget.classList.remove('hovered');
+            }
+            currentDropTarget = null;
+
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            document.removeEventListener('touchmove', onTouchMove);
+            document.removeEventListener('touchend', onTouchEnd);
+            document.removeEventListener('touchcancel', onTouchCancel);
+        }
+
+        function endDrag() {
+            if (!currentDraggedItem || !draggingGhost) {
+                cleanupDragState(); 
+                return;
+            }
+
+            if (currentDropTarget) {
+                performDrop(currentDraggedItem, currentDropTarget);
+            } else {
+                if (currentDraggedItem && originalParent) {
+                    originalParent.appendChild(currentDraggedItem);
+                    currentDraggedItem.style.visibility = 'visible';
+                }
+            }
+            
+            cleanupDragState(); 
+        }
+
+        function performDrop(draggedElement, targetZone) {
+            const droppedWordText = draggedElement.dataset.wordText;
+
+            let sourcePhrase = null;
+            let sourceSlot = null;
+            const previousParentSlot = draggedElement.closest('.word-slot');
+            if (previousParentSlot) {
+                const phraseId = previousParentSlot.dataset.phraseId;
+                sourcePhrase = phrasesData.find(p => p.id === phraseId);
+                sourceSlot = sourcePhrase.slots.find(s => s.slotId === previousParentSlot.id);
+            }
+
+            if (sourcePhrase && sourceSlot) {
+                if (sourcePhrase.isCompleted && sourcePhrase.matchedExpressionIndex !== null) {
+                    usedExpressionIndexes.delete(sourcePhrase.matchedExpressionIndex);
+                    completedPhrasesCount--;
+                }
+                sourcePhrase.isCompleted = false;
+                sourcePhrase.matchedExpressionIndex = null;
+                document.getElementById(sourcePhrase.id).classList.remove('completed');
+                sourceSlot.word = ''; 
+            }
+
+            if (targetZone.classList.contains('word-slot')) {
+                const targetSlot = targetZone;
+                const oldWordInTargetSlot = targetSlot.querySelector('.draggable-word');
+
+                if (oldWordInTargetSlot) {
+                    oldWordInTargetSlot.classList.remove('draggable-word');
+                    oldWordInTargetSlot.classList.add('word-bank-item');
+                    wordBank.appendChild(oldWordInTargetSlot);
+                    oldWordInTargetSlot.style.visibility = 'visible'; 
+                    
+                    const oldWordPhraseId = oldWordInTargetSlot.closest('.phrase-container')?.id;
+                    if (oldWordPhraseId) {
+                        const oldWordPhrase = phrasesData.find(p => p.id === oldWordPhraseId);
+                        if (oldWordPhrase) {
+                             if (oldWordPhrase.isCompleted && oldWordPhrase.matchedExpressionIndex !== null) {
+                                usedExpressionIndexes.delete(oldWordPhrase.matchedExpressionIndex);
+                                completedPhrasesCount--;
+                            }
+                            oldWordPhrase.isCompleted = false;
+                            oldWordPhrase.matchedExpressionIndex = null;
+                            document.getElementById(oldWordPhraseId).classList.remove('completed');
+                            const oldWordSlotId = oldWordInTargetSlot.closest('.word-slot').id;
+                            const oldWordSlot = oldWordPhrase.slots.find(s => s.slotId === oldWordSlotId);
+                            if (oldWordSlot) oldWordSlot.word = '';
+                        }
+                    }
+                }
+
+                draggedElement.classList.remove('word-bank-item');
+                draggedElement.classList.add('draggable-word');
+                targetSlot.appendChild(draggedElement);
+                draggedElement.style.visibility = 'visible'; 
+
+                const phraseId = targetSlot.dataset.phraseId;
+                const phrase = phrasesData.find(p => p.id === phraseId);
+                if (phrase) {
+                    const slot = phrase.slots.find(s => s.slotId === targetSlot.id);
+                    if (slot) {
+                        slot.word = droppedWordText;
+                        checkPhraseCompletion(phrase);
+                    }
+                }
+            } else if (targetZone.id === 'word-bank' || targetZone.closest('#word-bank')) {
+                draggedElement.classList.remove('draggable-word');
+                draggedElement.classList.add('word-bank-item');
+                wordBank.appendChild(draggedElement);
+                draggedElement.style.visibility = 'visible'; 
+            } else {
+                // This 'else' should now be unreachable by design due to endDrag's handling.
+            }
+        }
+
+        function checkPhraseCompletion(phrase) {
+            const currentPhraseWords = phrase.slots.map(s => s.word);
+            const currentPhraseString = currentPhraseWords.join(' ');
+            const phraseElement = document.getElementById(phrase.id);
+
+            const wasPreviouslyCompleted = phrase.isCompleted;
+            const previousMatchedIndex = phrase.matchedExpressionIndex;
+
+            let isCorrect = false;
+            let matchedOriginalExpressionIndex = null;
+
+            const allSlotsFilled = currentPhraseWords.every(word => word !== '');
+
+            if (allSlotsFilled) {
+                for (let i = 0; i < expressions.length; i++) {
+                    const originalExpression = expressions[i];
+
+                    if (currentPhraseString === originalExpression &&
+                        (!usedExpressionIndexes.has(i) || i === previousMatchedIndex)) {
+                        
+                        isCorrect = true;
+                        matchedOriginalExpressionIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (isCorrect && !wasPreviouslyCompleted) {
+                phrase.isCompleted = true;
+                phrase.matchedExpressionIndex = matchedOriginalExpressionIndex;
+                usedExpressionIndexes.add(matchedOriginalExpressionIndex);
+                completedPhrasesCount++;
+                phraseElement.classList.add('completed');
+                phraseElement.querySelectorAll('.draggable-word').forEach(wordElem => {
+                    wordElem.style.cursor = 'default';
+                });
+
+                if (completedPhrasesCount === expressions.length) {
+                    stopTimer(); 
+                    showCompletionMessage(); 
+                }
+            } else if (!isCorrect && wasPreviouslyCompleted) {
+                phrase.isCompleted = false;
+                if (previousMatchedIndex !== null) {
+                    usedExpressionIndexes.delete(previousMatchedIndex);
+                }
+                phrase.matchedExpressionIndex = null;
+                completedPhrasesCount--;
+                phraseElement.classList.remove('completed');
+                phraseElement.querySelectorAll('.draggable-word').forEach(wordElem => {
+                    wordElem.style.cursor = 'grab';
+                });
+            }
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval); 
+            secondsElapsed = 0;
+            stopwatchDisplay.textContent = '00:00';
+            timerInterval = setInterval(() => {
+                secondsElapsed++;
+                const minutes = Math.floor(secondsElapsed / 60);
+                const seconds = secondsElapsed % 60;
+                stopwatchDisplay.textContent =
+                    `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function showCompletionMessage() {
+            finalTimeDisplay.textContent = stopwatchDisplay.textContent;
+            congratsNameDisplay.textContent = studentNameInput.value || "Player"; 
+            closeMessageButton.innerHTML = '👏🎉 Great Job! 🎉👏';
+            completionMessage.classList.remove('hidden');
+        }
+        
+        initializePuzzle(); 
+    </script>
+</body>
+</html>
