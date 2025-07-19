@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business English Expression Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #8B4513 0%, #A0522D 50%, #CD853F 100%);
+            overflow: hidden;
+            height: 100vh;
+            touch-action: manipulation;
+        }
+
+        .welcome-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #8B4513 0%, #A0522D 50%, #CD853F 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .welcome-screen h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .rules {
+            max-width: 600px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+            font-size: 1.1rem;
+        }
+
+        .name-input {
+            margin-bottom: 20px;
+        }
+
+        .name-input input {
+            padding: 15px;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 25px;
+            width: 300px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .start-button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            touch-action: manipulation;
+        }
+
+        .start-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+        }
+
+        .game-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: none;
+        }
+
+        .game-header {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            z-index: 100;
+            color: white;
+            font-size: 1.1rem;
+            line-height: 1.3;
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .header-label {
+            font-weight: normal;
+        }
+
+        .header-value {
+            font-weight: bold;
+        }
+
+        .word-grid {
+            position: absolute;
+            top: 80px;
+            left: 0;
+            right: 0;
+            bottom: 180px;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(6, 1fr);
+            gap: 5px;
+            padding: 10px;
+        }
+
+        .word-tile {
+            background: linear-gradient(145deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
+            border: 2px solid rgba(255,255,255,0.8);
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #333;
+            cursor: crosshair;
+            transition: all 0.3s;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            user-select: none;
+            position: relative;
+        }
+
+        .word-tile:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+        }
+
+        .word-tile.hover-crosshair::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            background: 
+                linear-gradient(to right, transparent 40%, #ff0000 40%, #ff0000 60%, transparent 60%),
+                linear-gradient(to bottom, transparent 40%, #ff0000 40%, #ff0000 60%, transparent 60%);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .word-tile.cracked {
+            background: linear-gradient(145deg, rgba(255,255,255,0.3), rgba(255,255,255,0.1));
+            color: #999;
+            position: relative;
+        }
+
+        .word-tile.cracked::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M20,10 L30,30 L50,20 L70,40 L80,30 L90,50" stroke="rgba(0,0,0,0.3)" stroke-width="2" fill="none"/><path d="M10,60 L40,50 L60,70 L85,65" stroke="rgba(0,0,0,0.3)" stroke-width="2" fill="none"/></svg>') no-repeat center;
+            background-size: cover;
+        }
+
+        .word-tile.selected {
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+            color: white;
+            transform: scale(0.95);
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .crosshair {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            pointer-events: none;
+            z-index: 200;
+            display: none;
+        }
+
+        .crosshair::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 2px;
+            background: #ff0000;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px #ff0000;
+        }
+
+        .crosshair::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 20px;
+            background: #ff0000;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px #ff0000;
+        }
+
+        .definition-area {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 180px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px;
+            padding-bottom: 25px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .current-expression {
+            font-size: 1.1rem;
+            color: #4CAF50;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+            min-height: 50px;
+            align-items: flex-start;
+        }
+
+        .expression-word {
+            background: rgba(76, 175, 80, 0.2);
+            padding: 8px 12px;
+            border-radius: 15px;
+            border: 2px solid #4CAF50;
+            font-weight: bold;
+            transition: all 0.3s;
+            height: fit-content;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .expression-word.completed {
+            background: #4CAF50;
+            color: white;
+            transform: scale(1.1);
+            box-shadow: 0 2px 10px rgba(76, 175, 80, 0.5);
+        }
+
+        .expression-word.next-word {
+            background: #4CAF50;
+            color: white;
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.8);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .definition-container {
+            position: relative;
+            height: 80px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 15px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+        }
+
+        .definition-scroll {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        .definition-text {
+            display: inline-block;
+            white-space: nowrap;
+            animation: scroll-left 15s linear infinite;
+            padding-left: 100%;
+            font-size: 1.2rem;
+            line-height: 1.4;
+        }
+
+        @keyframes scroll-left {
+            0% { 
+                transform: translateX(0%); 
+            }
+            100% { 
+                transform: translateX(-100%); 
+            }
+        }
+
+        .error-flash {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 4rem;
+            color: #ff0000;
+            font-weight: bold;
+            z-index: 300;
+            display: none;
+            animation: flash 0.5s ease-out;
+        }
+
+        @keyframes flash {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+        }
+
+        .round-flash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            z-index: 400;
+            display: none;
+            animation: white-flash 0.3s ease-out;
+        }
+
+        @keyframes white-flash {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .results-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #8B4513 0%, #A0522D 50%, #CD853F 100%);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .results-screen h2 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .celebration-emojis {
+            font-size: 3rem;
+            margin: 20px 0;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-20px);
+            }
+            60% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .final-stats {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+        }
+
+        .play-again-button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        @media (max-width: 768px) {
+            .word-grid {
+                grid-template-columns: repeat(6, 1fr);
+                grid-template-rows: repeat(8, 1fr);
+                bottom: 200px;
+                top: 90px;
+            }
+            
+            .word-tile {
+                font-size: 0.8rem;
+            }
+            
+            .welcome-screen h1 {
+                font-size: 2rem;
+            }
+            
+            .rules {
+                font-size: 1rem;
+            }
+
+            .definition-area {
+                height: 200px;
+                padding-bottom: 30px;
+            }
+
+            .current-expression {
+                font-size: 1rem;
+                min-height: 60px;
+            }
+
+            .expression-word {
+                padding: 6px 10px;
+                font-size: 0.9rem;
+            }
+
+            .definition-text {
+                font-size: 1.1rem;
+            }
+
+            .game-header {
+                font-size: 1rem;
+            }
+
+            .definition-container {
+                height: 90px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="welcome-screen" id="welcomeScreen">
+        <h1>🎯 Business English Expression Game</h1>
+        <div class="rules">
+            <p><strong>Game Rules:</strong></p>
+            <p>• Move your crosshair over the correct words in order to complete each business expression</p>
+            <p>• Click/tap to "shoot" the word tile</p>
+            <p>• Correct words crack the glass tile (+10 points)</p>
+            <p>• Wrong words show a red X (-5 points)</p>
+            <p>• Complete all 20 expressions to win!</p>
+        </div>
+        <div class="name-input">
+            <input type="text" id="playerName" placeholder="Enter your name" maxlength="20">
+            <br>
+            <button class="start-button" id="startButton">Start Game</button>
+        </div>
+    </div>
+
+    <div class="game-container" id="gameContainer">
+        <div class="game-header">
+            <div class="header-row">
+                <div><span class="header-label">Player:</span> <span class="header-value" id="playerDisplay"></span></div>
+                <div><span class="header-label">Round:</span> <span class="header-value" id="roundNumber">1</span>/20</div>
+            </div>
+            <div class="header-row">
+                <div><span class="header-label">Time:</span> <span class="header-value" id="timeDisplay">00:00</span></div>
+                <div><span class="header-label">Score:</span> <span class="header-value" id="scoreDisplay">0</span></div>
+            </div>
+        </div>
+
+        <div class="word-grid" id="wordGrid"></div>
+
+        <div class="crosshair" id="crosshair"></div>
+
+        <div class="definition-area">
+            <div class="current-expression" id="currentExpression"></div>
+            <div class="definition-container">
+                <div class="definition-scroll">
+                    <div class="definition-text" id="definitionText"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="error-flash" id="errorFlash">❌</div>
+        <div class="round-flash" id="roundFlash"></div>
+    </div>
+
+    <div class="results-screen" id="resultsScreen">
+        <h2>🎉 Congratulations <span id="finalPlayerName"></span>! 🎉</h2>
+        <div class="celebration-emojis">🏆 🎊 ✨ 🌟 🎈</div>
+        <p style="font-size: 1.3rem; margin-bottom: 20px;">All rounds complete! You're a Business English master! 💼</p>
+        <div class="final-stats">
+            <div>Final Score: <span id="finalScore">0</span></div>
+            <div>Total Time: <span id="finalTime">00:00</span></div>
+        </div>
+        <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; margin-top: 20px; border: 2px dashed rgba(255,255,255,0.3);">
+            <p style="font-size: 1.2rem; margin-bottom: 10px;">📸 <strong>Don't forget to take a screenshot!</strong></p>
+            <p style="font-size: 1rem; opacity: 0.9;">Capture your achievement and share your Business English mastery!</p>
+        </div>
+    </div>
+
+    <script>
+        // Game variables
+        let currentRound = 1;
+        let playerName = '';
+        let score = 0;
+        let startTime = 0;
+        let gameTimer = null;
+        let currentExpression = [];
+        let currentDefinition = '';
+        let wordProgress = 0;
+        let allWords = [];
+        let shuffledExpressions = [];
+
+        // Business expressions database
+        const businessExpressions = [
+            { expression: ["go", "soft", "on"], definition: "treat someone delicately, leniently and/or not criticize someone too harshly" },
+            { expression: ["harp", "on"], definition: "keep talking or complaining about someone or something" },
+            { expression: ["slave", "away"], definition: "work incredibly hard and often continuously on/at something" },
+            { expression: ["nothing", "short", "of"], definition: "emphasize a situation, quality, or type of behavior" },
+            { expression: ["plug", "along"], definition: "make steady progress - especially in the face of difficulties, challenges or setbacks" },
+            { expression: ["tread", "lightly"], definition: "be extra cautious and tactful when dealing with someone in order to avoid offending or aggravating him/her" },
+            { expression: ["pull", "something", "off"], definition: "accomplish whatever that may have been despite the challenges and/or hardships" },
+            { expression: ["on", "one's", "own", "account"], definition: "do something without being given instructions, prompting or guidance from others" },
+            { expression: ["take", "issue", "with"], definition: "strongly disagree with someone or something" },
+            { expression: ["cry", "foul"], definition: "complain or protest against something bad/illegal that has happened" },
+            { expression: ["out", "of", "the", "woods"], definition: "be out of danger or difficulty" },
+            { expression: ["fly", "off", "the", "handle"], definition: "suddenly lose one's temper" },
+            { expression: ["the", "devil", "is", "in", "the", "details"], definition: "not paying close attention to the specifics of something may cause unexpected problems" },
+            { expression: ["in", "the", "ballpark"], definition: "when someone's ideas, actions, or estimates are approximately correct" },
+            { expression: ["go", "out", "on", "a", "limb"], definition: "act with conviction despite the potential danger and/or criticism" },
+            { expression: ["off", "base"], definition: "be wrong/incorrect, mistaken or misinformed" },
+            { expression: ["the", "homestretch"], definition: "approach the final stage of an undertaking" },
+            { expression: ["rant", "and", "rave"], definition: "complain loudly or forcefully and usually at length about that" },
+            { expression: ["in", "and", "of", "itself"], definition: "something being considered independently apart from any other factors" },
+            { expression: ["punch", "below", "the", "belt"], definition: "unfairly target someone's weaknesses or vulnerabilities" }
+        ];
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const startButton = document.getElementById('startButton');
+            const nameInput = document.getElementById('playerName');
+            
+            if (startButton) {
+                startButton.addEventListener('click', startGame);
+                startButton.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    startGame();
+                });
+            }
+            
+            if (nameInput) {
+                nameInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        startGame();
+                    }
+                });
+            }
+        });
+
+        function startGame() {
+            const nameInput = document.getElementById('playerName');
+            playerName = nameInput.value.trim();
+            
+            if (!playerName) {
+                alert('Please enter your name!');
+                return;
+            }
+            
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            
+            initializeGame();
+        }
+
+        function initializeGame() {
+            currentRound = 1;
+            score = 0;
+            startTime = Date.now();
+            
+            // Shuffle the expressions for this game
+            shuffledExpressions = shuffle([...businessExpressions]);
+            
+            document.getElementById('playerDisplay').textContent = playerName;
+            
+            startTimer();
+            loadRound();
+        }
+
+        function startTimer() {
+            gameTimer = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('timeDisplay').textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        function loadRound() {
+            if (currentRound > 20) {
+                endGame();
+                return;
+            }
+
+            const roundData = shuffledExpressions[currentRound - 1];
+            currentExpression = [...roundData.expression];
+            currentDefinition = roundData.definition;
+            wordProgress = 0;
+
+            updateDisplay();
+            createWordGrid();
+            updateScrollingDefinition();
+        }
+
+        function updateDisplay() {
+            document.getElementById('roundNumber').textContent = currentRound;
+            document.getElementById('scoreDisplay').textContent = score;
+            
+            const expressionContainer = document.getElementById('currentExpression');
+            expressionContainer.innerHTML = '';
+            
+            currentExpression.forEach((word, index) => {
+                const wordElement = document.createElement('div');
+                wordElement.className = 'expression-word';
+                
+                // Show completed words, highlight the next word to guess
+                if (index < wordProgress) {
+                    wordElement.textContent = word;
+                    wordElement.classList.add('completed');
+                } else if (index === wordProgress) {
+                    wordElement.textContent = '?';
+                    wordElement.classList.add('next-word');
+                } else {
+                    wordElement.textContent = '?';
+                }
+                
+                expressionContainer.appendChild(wordElement);
+            });
+        }
+
+        function updateScrollingDefinition() {
+            const definitionElement = document.getElementById('definitionText');
+            
+            // Reset the animation by removing and re-adding the class
+            definitionElement.style.animation = 'none';
+            definitionElement.textContent = `📖 ${currentDefinition}`;
+            
+            // Force a reflow to ensure the animation is reset
+            definitionElement.offsetHeight;
+            
+            // Re-enable the animation
+            definitionElement.style.animation = 'scroll-left 15s linear infinite';
+        }
+
+        function createWordGrid() {
+            const grid = document.getElementById('wordGrid');
+            grid.innerHTML = '';
+            
+            // Collect all words from all expressions for decoys
+            allWords = [];
+            businessExpressions.forEach(expr => {
+                allWords = allWords.concat(expr.expression);
+            });
+            
+            // Remove duplicates
+            allWords = [...new Set(allWords)];
+            
+            // Shuffle words
+            allWords = shuffle(allWords);
+            
+            // Create 48 tiles (8x6 grid)
+            for (let i = 0; i < 48; i++) {
+                const tile = document.createElement('div');
+                tile.className = 'word-tile';
+                tile.textContent = allWords[i % allWords.length];
+                tile.addEventListener('click', () => handleTileClick(tile));
+                tile.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    handleTileClick(tile);
+                });
+                grid.appendChild(tile);
+            }
+            
+            // Setup crosshair after tiles are created
+            setupCrosshair();
+        }
+
+        function setupCrosshair() {
+            const tiles = document.querySelectorAll('.word-tile');
+            
+            tiles.forEach(tile => {
+                // Mouse events
+                tile.addEventListener('mouseenter', () => {
+                    tile.classList.add('hover-crosshair');
+                });
+                
+                tile.addEventListener('mouseleave', () => {
+                    tile.classList.remove('hover-crosshair');
+                });
+                
+                // Touch events
+                tile.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    // Remove crosshair from all tiles
+                    tiles.forEach(t => t.classList.remove('hover-crosshair'));
+                    // Add to current tile
+                    tile.classList.add('hover-crosshair');
+                });
+            });
+        }
+
+        function handleTileClick(tile) {
+            const expectedWord = currentExpression[wordProgress];
+            const clickedWord = tile.textContent;
+            
+            if (clickedWord === expectedWord) {
+                // Correct word
+                tile.classList.add('cracked');
+                tile.classList.add('selected');
+                score += 10;
+                wordProgress++;
+                
+                // Update display to show the newly selected word
+                updateDisplay();
+                
+                if (wordProgress >= currentExpression.length) {
+                    // Round complete
+                    setTimeout(() => {
+                        showRoundFlash();
+                        setTimeout(() => {
+                            currentRound++;
+                            loadRound();
+                        }, 500);
+                    }, 500);
+                }
+            } else {
+                // Wrong word
+                showError();
+                score -= 5;
+                updateDisplay();
+            }
+        }
+
+        function showError() {
+            const errorFlash = document.getElementById('errorFlash');
+            errorFlash.style.display = 'block';
+            setTimeout(() => {
+                errorFlash.style.display = 'none';
+            }, 500);
+        }
+
+        function showRoundFlash() {
+            const roundFlash = document.getElementById('roundFlash');
+            roundFlash.style.display = 'block';
+            setTimeout(() => {
+                roundFlash.style.display = 'none';
+            }, 300);
+        }
+
+        function endGame() {
+            clearInterval(gameTimer);
+            
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            const finalTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            document.getElementById('finalPlayerName').textContent = playerName;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalTime').textContent = finalTime;
+            
+            document.getElementById('gameContainer').style.display = 'none';
+            document.getElementById('resultsScreen').style.display = 'flex';
+        }
+
+        function restartGame() {
+            document.getElementById('resultsScreen').style.display = 'none';
+            document.getElementById('welcomeScreen').style.display = 'flex';
+            
+            // Reset name input
+            document.getElementById('playerName').value = '';
+            
+            // Clear any existing timer
+            if (gameTimer) {
+                clearInterval(gameTimer);
+                gameTimer = null;
+            }
+        }
+
+        function shuffle(array) {
+            const newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        }
+    </script>
+</body>
+</html>
